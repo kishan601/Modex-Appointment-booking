@@ -19,55 +19,34 @@ Part 1: Ticket Booking System(Backend)
 
 Duration: 24 hours from the time of assignment
 Tech Stack: Node.js, Express.js , Postgres
+
 Objective:
 Design and implement a basic ticket booking system that simulates the core functionality of platforms like RedBus or BookMyShow or Doctor Appointment booking. The system must handle high concurrency scenarios to prevent race conditions and overbooking.
-Assignment Scope
+Assignment Scope 
+
+
 1. Functional Requirements
 Show/Trip/Slot Management
-
-
 Admin should be able to create shows or bus trips.
 
 
 Each entry must include:
-
-
 Show or Bus Name or doctor name
-
-
 Start Time
-
-
 Total Number of Seats (e.g., 40)
-
-
 User Operations
-
-
 Users can retrieve a list of available shows/trips.
 
 
 Users can attempt to book one or more seats for a selected show/trip.
-
-
 The system must ensure that no overbooking can occur due to concurrent booking requests.
-
-
 Booking status should include: PENDING, CONFIRMED, or FAILED.
 
 
 Concurrency Handling
-
-
 Your solution must handle multiple booking requests for the same seat(s) at the same time.
-
-
 Implement a strategy to ensure data consistency and atomicity of seat booking operations.
-
-
 (Optional Bonus) Booking Expiry
-
-
 Automatically mark a booking as FAILED if it remains in PENDING status for more than 2 minutes.
 
 
