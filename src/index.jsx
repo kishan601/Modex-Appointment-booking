@@ -12,6 +12,10 @@ import Medicines from "./pages/Medicines/Medicines";
 import Surgeries from "./pages/Surgeries/Surgeries";
 import ProviderSoftware from "./pages/ProviderSoftware/ProviderSoftware";
 import { CartProvider } from "./context/CartContext";
+import { AuthProvider } from "./context/AuthContext";
+import { DoctorsProvider } from "./context/DoctorsContext";
+import { BookingsProvider } from "./context/BookingsContext";
+import { UIProvider } from "./context/UIContext";
 
 const router = createBrowserRouter([
   {
@@ -167,9 +171,17 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <ThemeProvider theme={theme}>
-      <CartProvider>
-        <RouterProvider router={router} />
-      </CartProvider>
+      <AuthProvider>
+        <DoctorsProvider>
+          <BookingsProvider>
+            <UIProvider>
+              <CartProvider>
+                <RouterProvider router={router} />
+              </CartProvider>
+            </UIProvider>
+          </BookingsProvider>
+        </DoctorsProvider>
+      </AuthProvider>
     </ThemeProvider>
   </React.StrictMode>
 );
