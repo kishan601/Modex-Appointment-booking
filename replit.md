@@ -19,10 +19,22 @@ Medify is a healthcare appointment booking platform that allows users to find do
 │   ├── components/        # Reusable UI components
 │   │   ├── BookAppointment/   # Appointment booking modal
 │   │   ├── BookingModal/      # Booking confirmation modal
-│   │   └── NavBar/           # Navigation bar
+│   │   ├── NavBar/            # Navigation bar
+│   │   └── ProtectedRoute.jsx # Auth guard for admin routes
+│   ├── context/           # React Context providers
+│   │   ├── AuthContext.jsx    # Admin authentication state
+│   │   ├── DoctorsContext.jsx # Doctors data and CRUD
+│   │   ├── BookingsContext.jsx# Bookings data management
+│   │   └── UIContext.jsx      # Notifications and loading
+│   ├── pages/Admin/       # Admin Dashboard
+│   │   ├── AdminLogin.jsx     # Admin login page
+│   │   ├── AdminDashboard.jsx # Main admin layout with tabs
+│   │   ├── CreateDoctorForm.jsx # Add new doctors
+│   │   ├── CreateSlotsForm.jsx  # Single/bulk slot creation
+│   │   └── BookingsTable.jsx    # View all bookings
 │   ├── MyBookings/        # User bookings page
 │   ├── services/          # API service layer
-│   │   └── api.js         # Axios API client
+│   │   └── api.ts         # Axios API client with interceptors
 │   └── App.jsx            # Main application component
 └── vite.config.ts         # Vite configuration with API proxy
 ```
@@ -70,6 +82,10 @@ The booking system uses PostgreSQL transactions with row-level locks (`FOR UPDAT
 - Implemented full booking system with concurrency handling
 - Updated frontend to use backend APIs instead of localStorage
 - Added Vite proxy for seamless API calls
+- Added Admin Dashboard with protected routes
+- Implemented Context API for state management (Auth, Doctors, Bookings, UI)
+- Created admin forms for doctor and slot management
+- Added API client with JWT token interceptor
 
 ## Deployment
 Configured for autoscale deployment with:
