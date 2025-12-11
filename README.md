@@ -1,70 +1,313 @@
-# Getting Started with Create React App
+# Medify - Doctor Appointment Booking System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A healthcare appointment booking platform built with **React**, **Node.js/Express**, and **PostgreSQL**. The system handles high concurrency scenarios to prevent race conditions and overbooking.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+### User Features
+- Browse available doctors by specialty
+- View doctor details and ratings
+- Book appointments with date/time selection
+- Track booking status (CONFIRMED, PENDING, FAILED, CANCELLED)
+- View personal booking history
+- Cancel bookings and free up slots
 
-### `npm start`
+### Admin Features
+- Create and manage doctors
+- Create individual or bulk time slots
+- View all system bookings
+- Manage doctor information (specialty, experience, fees)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Technical Features
+- **Concurrency Control**: PostgreSQL row-level locks prevent double-booking
+- **Booking Expiry**: Automatic PENDING → FAILED after 2 minutes
+- **Transaction Safety**: ACID-compliant booking operations
+- **API Documentation**: Interactive Swagger UI
+- **Authentication**: JWT-based admin authentication
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## 📋 Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, Vite, Material-UI, Bootstrap |
+| **Backend** | Node.js, Express.js, Swagger |
+| **Database** | PostgreSQL (Neon) |
+| **Authentication** | JWT (jsonwebtoken) |
+| **Security** | bcryptjs for password hashing |
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🔧 Setup Instructions
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Prerequisites
+- Node.js (v16 or higher)
+- PostgreSQL database (Neon connection string)
+- npm or yarn
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Environment Variables
 
-### `npm run eject`
+Create a `.env` file in the root directory:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```env
+# Database
+NEON_DATABASE_URL=postgresql://user:password@host/database
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Backend
+BACKEND_PORT=3001
+JWT_SECRET=medify-secret-key-2024
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Frontend (if needed)
+VITE_API_URL=http://localhost:3001
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Installation
 
-## Learn More
+```bash
+# Install dependencies
+npm install
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Start frontend dev server (port 5000)
+npm run dev
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Start backend server (port 3001) - in separate terminal
+node server/index.js
+```
 
-### Code Splitting
+### Database Setup
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The database schema is automatically initialized on backend startup. The schema includes:
+- `doctors` - Doctor profiles
+- `slots` - Available appointment time slots
+- `bookings` - Patient appointments
+- `admin_users` - Admin authentication
 
-### Analyzing the Bundle Size
+Default admin credentials:
+- **Username**: `admin`
+- **Password**: `admin123`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## 📚 API Documentation
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### Interactive Swagger UI
+Once the backend is running, visit the **interactive API documentation**:
 
-### Advanced Configuration
+```
+http://localhost:3001/api-docs
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+The Swagger UI allows you to:
+- View all available endpoints
+- Test API calls directly
+- See request/response schemas
+- Check authentication requirements
 
-### Deployment
+### Main Endpoints
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+#### Authentication (Admin)
+- `POST /api/admin/login` - Admin login (returns JWT token)
 
-### `npm run build` fails to minify
+#### Doctors
+- `GET /api/doctors` - List all doctors
+- `GET /api/doctors/:id` - Get doctor details
+- `POST /api/admin/doctors` - Create new doctor (admin only)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+#### Slots
+- `GET /api/doctors/:doctorId/slots` - Get available slots for a doctor
+- `POST /api/admin/slots` - Create single slot (admin only)
+- `POST /api/admin/slots/bulk` - Create multiple slots (admin only)
+
+#### Bookings
+- `POST /api/bookings` - Create a new booking
+- `GET /api/bookings?email=...` - Get user bookings
+- `PATCH /api/bookings/:id/cancel` - Cancel a booking
+- `GET /api/admin/bookings` - View all bookings (admin only)
+
+#### Health
+- `GET /api/health` - API health check
+
+---
+
+## 🔒 Authentication
+
+### Admin Login Flow
+```bash
+# 1. Get JWT token
+curl -X POST http://localhost:3001/api/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Response:
+# {"token":"eyJhbGc...","username":"admin"}
+
+# 2. Use token for protected endpoints
+curl http://localhost:3001/api/admin/doctors \
+  -H "Authorization: Bearer eyJhbGc..."
+```
+
+---
+
+## ⚙️ Concurrency & Data Safety
+
+### How Booking Works (Prevents Overbooking)
+
+```sql
+BEGIN TRANSACTION
+  1. Lock slot row (FOR UPDATE)
+  2. Check if slot is available
+  3. Mark slot as unavailable
+  4. Create booking entry
+COMMIT or ROLLBACK
+```
+
+**Result**: Only one user can successfully book a slot. Others get:
+- `409 Conflict` - Slot taken by another user
+- `FAILED` booking status
+
+### Booking Expiry
+
+Bookings with `PENDING` status automatically transition to `FAILED` after 2 minutes:
+
+```javascript
+// Runs every minute
+UPDATE bookings 
+  SET status = 'FAILED' 
+  WHERE status = 'PENDING' 
+  AND created_at < NOW() - INTERVAL 2 MINUTES
+```
+
+---
+
+## 🏗️ Project Structure
+
+```
+├── server/
+│   ├── index.js              # Express server with all API endpoints
+│   ├── db.js                 # PostgreSQL connection pool
+│   └── schema.sql            # Database schema (auto-initialized)
+├── src/
+│   ├── components/           # React components
+│   │   ├── BookAppointment/
+│   │   ├── BookingModal/
+│   │   ├── NavBar/
+│   │   └── ...
+│   ├── services/
+│   │   └── api.js            # API client (axios)
+│   ├── App.jsx
+│   └── index.jsx
+├── package.json              # Dependencies
+├── vite.config.ts            # Vite configuration
+└── SYSTEM_DESIGN.md          # Architecture documentation
+```
+
+---
+
+## 📊 API Request Examples
+
+### 1. Get All Doctors
+```bash
+curl http://localhost:3001/api/doctors
+```
+
+### 2. Book an Appointment
+```bash
+curl -X POST http://localhost:3001/api/bookings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "doctor_id": 1,
+    "slot_id": 5,
+    "patient_first_name": "John",
+    "patient_last_name": "Doe",
+    "patient_email": "john@example.com",
+    "patient_phone": "9876543210",
+    "appointment_type": "video",
+    "reason": "Checkup",
+    "booking_date": "2025-12-20",
+    "booking_time": "14:00"
+  }'
+```
+
+### 3. Get My Bookings
+```bash
+curl "http://localhost:3001/api/bookings?email=john@example.com"
+```
+
+### 4. Create Doctor (Admin)
+```bash
+curl -X POST http://localhost:3001/api/admin/doctors \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "name": "Dr. John Smith",
+    "specialty": "Cardiology",
+    "hospital": "City Hospital",
+    "experience": 15,
+    "rating": 4.8,
+    "consultation_fee": 500
+  }'
+```
+
+---
+
+## 🧪 Testing
+
+### Manual Testing via Swagger UI
+Visit `http://localhost:3001/api-docs` to test all endpoints interactively.
+
+### Testing with Postman
+1. Get JWT token from `/api/admin/login`
+2. Set `Authorization: Bearer {token}` header for admin endpoints
+3. Test endpoints with sample data
+
+---
+
+## 🔄 Database Migrations
+
+The schema is automatically applied on server startup via `schema.sql`. No manual migrations needed.
+
+---
+
+## 📝 Important Notes
+
+1. **Slot Availability**: Booked slots are immediately marked as unavailable
+2. **Transaction Safety**: All booking operations use database transactions
+3. **Concurrency**: Multiple simultaneous booking requests are handled safely
+4. **Expiry Logic**: PENDING bookings auto-fail after 2 minutes
+5. **JWT Expiry**: Admin tokens expire after 24 hours
+
+---
+
+## 📄 System Design Documentation
+
+For detailed information about:
+- **Scaling architecture** (horizontal scaling, load balancing)
+- **Database sharding** (range-based sharding strategy)
+- **Concurrency control** (transactions, locking mechanisms)
+- **Caching strategies** (Redis, performance optimization)
+- **Disaster recovery** (backups, failover, business continuity)
+
+See: **[SYSTEM_DESIGN.md](./SYSTEM_DESIGN.md)**
+
+---
+
+## 🚀 Deployment
+
+The application is configured for deployment with:
+- **Build**: `npm run build`
+- **Start**: `node server/index.js`
+- **Frontend**: Served via Vite (build to `dist/`)
+- **Backend**: Express.js on port 3001
+- **Database**: Neon PostgreSQL (connection via `NEON_DATABASE_URL`)
+
+---
+
+## 📞 Support
+
+For issues, feature requests, or improvements, please contact support@medify.com
+
+---
+
+**Last Updated**: December 2025  
+**Version**: 1.0.0

@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -14,6 +16,87 @@ const JWT_SECRET = process.env.JWT_SECRET || 'medify-secret-key-2024';
 app.use(cors());
 app.use(express.json());
 
+// ==================== SWAGGER SETUP ====================
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Medify - Doctor Appointment Booking System',
+      version: '1.0.0',
+      description: 'API documentation for Medify healthcare appointment booking platform',
+      contact: {
+        name: 'Medify Support',
+        email: 'support@medify.com'
+      }
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: 'Development server'
+      }
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      },
+      schemas: {
+        Doctor: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            name: { type: 'string' },
+            specialty: { type: 'string' },
+            hospital: { type: 'string' },
+            experience: { type: 'integer' },
+            rating: { type: 'number' },
+            consultation_fee: { type: 'integer' },
+            image: { type: 'string' }
+          }
+        },
+        Slot: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            doctor_id: { type: 'integer' },
+            slot_date: { type: 'string', format: 'date' },
+            slot_time: { type: 'string' },
+            is_available: { type: 'boolean' }
+          }
+        },
+        Booking: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            doctor_id: { type: 'integer' },
+            slot_id: { type: 'integer' },
+            patient_first_name: { type: 'string' },
+            patient_last_name: { type: 'string' },
+            patient_email: { type: 'string' },
+            patient_phone: { type: 'string' },
+            appointment_type: { type: 'string', enum: ['video', 'in-person'] },
+            reason: { type: 'string' },
+            notes: { type: 'string' },
+            booking_date: { type: 'string', format: 'date' },
+            booking_time: { type: 'string' },
+            status: { type: 'string', enum: ['PENDING', 'CONFIRMED', 'FAILED', 'CANCELLED'] },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' }
+          }
+        }
+      }
+    }
+  },
+  apis: [__filename]
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// ==================== DATABASE INITIALIZATION ====================
 async function initializeDatabase() {
   try {
     const schemaPath = path.join(__dirname, 'schema.sql');
@@ -25,6 +108,36 @@ async function initializeDatabase() {
   }
 }
 
+// ==================== BOOKING EXPIRY JOB ====================
+// Automatically mark PENDING bookings as FAILED after 2 minutes
+async function expireOldPendingBookings() {
+  try {
+    const result = await pool.query(
+      `UPDATE bookings 
+       SET status = 'FAILED', updated_at = CURRENT_TIMESTAMP
+       WHERE status = 'PENDING' 
+       AND EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) > 120
+       RETURNING id, patient_email`
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`Expired ${result.rows.length} pending bookings older than 2 minutes`);
+      result.rows.forEach(booking => {
+        console.log(`  - Booking ID: ${booking.id}, Email: ${booking.patient_email}`);
+      });
+    }
+  } catch (error) {
+    console.error('Error expiring pending bookings:', error);
+  }
+}
+
+// Run expiry job every 1 minute
+setInterval(expireOldPendingBookings, 60000);
+
+// Run once on startup
+expireOldPendingBookings();
+
+// ==================== AUTHENTICATION MIDDLEWARE ====================
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -37,6 +150,44 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// ==================== ADMIN LOGIN ====================
+/**
+ * @swagger
+ * /api/admin/login:
+ *   post:
+ *     summary: Admin login
+ *     description: Authenticate admin user and return JWT token
+ *     tags:
+ *       - Admin
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *             required:
+ *               - username
+ *               - password
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 username:
+ *                   type: string
+ *       401:
+ *         description: Invalid credentials
+ */
 app.post('/api/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -61,6 +212,25 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+// ==================== DOCTORS ENDPOINTS ====================
+/**
+ * @swagger
+ * /api/doctors:
+ *   get:
+ *     summary: Get all doctors
+ *     description: Retrieve a list of all available doctors
+ *     tags:
+ *       - Doctors
+ *     responses:
+ *       200:
+ *         description: List of doctors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Doctor'
+ */
 app.get('/api/doctors', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM doctors ORDER BY name');
@@ -71,6 +241,30 @@ app.get('/api/doctors', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   get:
+ *     summary: Get doctor by ID
+ *     description: Retrieve details of a specific doctor
+ *     tags:
+ *       - Doctors
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Doctor'
+ *       404:
+ *         description: Doctor not found
+ */
 app.get('/api/doctors/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -85,6 +279,47 @@ app.get('/api/doctors/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/doctors:
+ *   post:
+ *     summary: Create a new doctor
+ *     description: Add a new doctor to the system (Admin only)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               specialty:
+ *                 type: string
+ *               hospital:
+ *                 type: string
+ *               experience:
+ *                 type: integer
+ *               rating:
+ *                 type: number
+ *               consultation_fee:
+ *                 type: integer
+ *               image:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Doctor created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Doctor'
+ *       401:
+ *         description: Unauthorized
+ */
 app.post('/api/admin/doctors', authenticateToken, async (req, res) => {
   try {
     const { name, specialty, hospital, experience, rating, consultation_fee, image } = req.body;
@@ -100,6 +335,37 @@ app.post('/api/admin/doctors', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== SLOTS ENDPOINTS ====================
+/**
+ * @swagger
+ * /api/doctors/{doctorId}/slots:
+ *   get:
+ *     summary: Get available slots for a doctor
+ *     description: Retrieve all available time slots for a specific doctor
+ *     tags:
+ *       - Slots
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Optional filter by date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: List of available slots
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Slot'
+ */
 app.get('/api/doctors/:doctorId/slots', async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -124,6 +390,44 @@ app.get('/api/doctors/:doctorId/slots', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/slots:
+ *   post:
+ *     summary: Create a single slot
+ *     description: Add a new time slot for a doctor (Admin only)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctor_id:
+ *                 type: integer
+ *               slot_date:
+ *                 type: string
+ *                 format: date
+ *               slot_time:
+ *                 type: string
+ *             required:
+ *               - doctor_id
+ *               - slot_date
+ *               - slot_time
+ *     responses:
+ *       201:
+ *         description: Slot created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Slot'
+ *       400:
+ *         description: Slot already exists
+ */
 app.post('/api/admin/slots', authenticateToken, async (req, res) => {
   try {
     const { doctor_id, slot_date, slot_time } = req.body;
@@ -142,6 +446,53 @@ app.post('/api/admin/slots', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/slots/bulk:
+ *   post:
+ *     summary: Create multiple slots in bulk
+ *     description: Add multiple time slots for a doctor at once (Admin only)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctor_id:
+ *                 type: integer
+ *               dates:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: date
+ *               times:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *             required:
+ *               - doctor_id
+ *               - dates
+ *               - times
+ *     responses:
+ *       201:
+ *         description: Slots created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 created:
+ *                   type: integer
+ *                 slots:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Slot'
+ */
 app.post('/api/admin/slots/bulk', authenticateToken, async (req, res) => {
   try {
     const { doctor_id, dates, times } = req.body;
@@ -184,6 +535,71 @@ app.post('/api/admin/slots/bulk', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== BOOKINGS ENDPOINTS ====================
+/**
+ * @swagger
+ * /api/bookings:
+ *   post:
+ *     summary: Create a new booking
+ *     description: Book an appointment with a doctor. Uses transaction with row-level locks to prevent overbooking.
+ *     tags:
+ *       - Bookings
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctor_id:
+ *                 type: integer
+ *               slot_id:
+ *                 type: integer
+ *               patient_first_name:
+ *                 type: string
+ *               patient_last_name:
+ *                 type: string
+ *               patient_email:
+ *                 type: string
+ *               patient_phone:
+ *                 type: string
+ *               appointment_type:
+ *                 type: string
+ *                 enum: ['video', 'in-person']
+ *               reason:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *               booking_date:
+ *                 type: string
+ *                 format: date
+ *               booking_time:
+ *                 type: string
+ *             required:
+ *               - doctor_id
+ *               - patient_first_name
+ *               - patient_last_name
+ *               - patient_email
+ *               - booking_date
+ *               - booking_time
+ *     responses:
+ *       201:
+ *         description: Booking created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 booking:
+ *                   $ref: '#/components/schemas/Booking'
+ *                 status:
+ *                   type: string
+ *                   enum: ['CONFIRMED', 'PENDING', 'FAILED']
+ *       409:
+ *         description: Slot not available (conflict)
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/bookings', async (req, res) => {
   const client = await pool.connect();
   
@@ -256,6 +672,33 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/bookings:
+ *   get:
+ *     summary: Get user bookings
+ *     description: Retrieve all bookings for a specific patient email
+ *     tags:
+ *       - Bookings
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Patient email address
+ *     responses:
+ *       200:
+ *         description: List of bookings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Booking'
+ *       400:
+ *         description: Email is required
+ */
 app.get('/api/bookings', async (req, res) => {
   try {
     const { email } = req.query;
@@ -304,6 +747,35 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/bookings/{id}/cancel:
+ *   patch:
+ *     summary: Cancel a booking
+ *     description: Cancel an existing booking and release the slot back to availability
+ *     tags:
+ *       - Bookings
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Booking cancelled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 booking:
+ *                   $ref: '#/components/schemas/Booking'
+ *       404:
+ *         description: Booking not found
+ */
 app.patch('/api/bookings/:id/cancel', async (req, res) => {
   const client = await pool.connect();
   
@@ -342,6 +814,28 @@ app.patch('/api/bookings/:id/cancel', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/admin/bookings:
+ *   get:
+ *     summary: Get all bookings
+ *     description: Retrieve all bookings in the system (Admin only)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all bookings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Booking'
+ *       401:
+ *         description: Unauthorized
+ */
 app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -357,12 +851,37 @@ app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== HEALTH CHECK ====================
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: Health check
+ *     description: Check if the API is running
+ *     tags:
+ *       - Health
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ==================== SERVER STARTUP ====================
 initializeDatabase().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend server running on port ${PORT}`);
+    console.log(`API Documentation available at http://localhost:${PORT}/api-docs`);
   });
 });
