@@ -16,6 +16,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { DoctorsProvider } from "./context/DoctorsContext";
 import { BookingsProvider } from "./context/BookingsContext";
 import { UIProvider } from "./context/UIContext";
+import { AdminLogin, AdminDashboard } from "./pages/Admin";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const router = createBrowserRouter([
   {
@@ -49,6 +51,18 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Home />,
+      },
+      {
+        path: "admin",
+        element: (
+          <ProtectedRoute>
+            <AdminDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/login",
+        element: <AdminLogin />,
       },
     ],
   },
