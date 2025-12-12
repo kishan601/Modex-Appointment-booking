@@ -13,6 +13,7 @@ const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'medify-secret-key-2024';
 
+// For development - allow all origins
 app.use(cors());
 app.use(express.json());
 
