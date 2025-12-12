@@ -9,16 +9,19 @@ import {
   useMediaQuery,
   IconButton,
 } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 import styles from "./NavBar.module.css";
 import { useState } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import MenuIcon from "@mui/icons-material/Menu";
+import { useAuth } from "../../context/AuthContext";
 
 export default function NavBar() {
   const isMobile = useMediaQuery("(max-width:900px)");
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header>
@@ -62,6 +65,28 @@ export default function NavBar() {
                 My Bookings
               </Button>
             </Link>
+
+            {isAuthenticated ? (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  logout();
+                  window.location.href = "/";
+                }}
+                sx={{ color: "primary.main", borderColor: "primary.main" }}
+              >
+                Admin Logout
+              </Button>
+            ) : (
+              <Link to="/admin/login">
+                <Button
+                  variant="outlined"
+                  sx={{ color: "primary.main", borderColor: "primary.main" }}
+                >
+                  Admin
+                </Button>
+              </Link>
+            )}
 
             {isMobile && (
               <IconButton
