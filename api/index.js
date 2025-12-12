@@ -245,7 +245,7 @@ app.get('/api/bookings', async (req, res) => {
     }
     
     const result = await pool.query(
-      `SELECT b.*, d.name as doctor_name, d.specialty, s.slot_time 
+      `SELECT b.*, d.id as doctor_id, d.name, d.specialty, d.image, d.rating, d.consultation_fee, s.slot_time 
        FROM bookings b
        LEFT JOIN doctors d ON b.doctor_id = d.id
        LEFT JOIN slots s ON b.slot_id = s.id
@@ -254,7 +254,36 @@ app.get('/api/bookings', async (req, res) => {
       [email]
     );
     
-    res.json(result.rows);
+    // Transform to match frontend expectations
+    const bookings = result.rows.map(row => ({
+      id: row.id,
+      slot_id: row.slot_id,
+      doctor_id: row.doctor_id,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      date: row.booking_date,
+      time: row.booking_time,
+      type: row.appointment_type === 'video' ? 'Video Consultation' : 'In-Person Consultation',
+      doctor: {
+        id: row.doctor_id,
+        name: row.name,
+        specialty: row.specialty,
+        image: row.image,
+        rating: row.rating,
+        consultation_fee: row.consultation_fee
+      },
+      patientInfo: {
+        firstName: row.patient_first_name,
+        lastName: row.patient_last_name,
+        email: row.patient_email,
+        phone: row.patient_phone,
+        reason: row.reason,
+        notes: row.notes
+      }
+    }));
+    
+    res.json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
@@ -289,14 +318,43 @@ app.patch('/api/bookings/:id/cancel', async (req, res) => {
 app.get('/api/admin/bookings', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT b.*, d.name as doctor_name, d.specialty, s.slot_time 
+      `SELECT b.*, d.id as doctor_id, d.name, d.specialty, d.image, d.rating, d.consultation_fee, s.slot_time 
        FROM bookings b
        LEFT JOIN doctors d ON b.doctor_id = d.id
        LEFT JOIN slots s ON b.slot_id = s.id
        ORDER BY b.created_at DESC`
     );
     
-    res.json(result.rows);
+    // Transform to match frontend expectations
+    const bookings = result.rows.map(row => ({
+      id: row.id,
+      slot_id: row.slot_id,
+      doctor_id: row.doctor_id,
+      status: row.status,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      date: row.booking_date,
+      time: row.booking_time,
+      type: row.appointment_type === 'video' ? 'Video Consultation' : 'In-Person Consultation',
+      doctor: {
+        id: row.doctor_id,
+        name: row.name,
+        specialty: row.specialty,
+        image: row.image,
+        rating: row.rating,
+        consultation_fee: row.consultation_fee
+      },
+      patientInfo: {
+        firstName: row.patient_first_name,
+        lastName: row.patient_last_name,
+        email: row.patient_email,
+        phone: row.patient_phone,
+        reason: row.reason,
+        notes: row.notes
+      }
+    }));
+    
+    res.json(bookings);
   } catch (error) {
     console.error('Error fetching admin bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
