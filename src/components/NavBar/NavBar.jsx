@@ -21,7 +21,6 @@ export default function NavBar() {
   const isMobile = useMediaQuery("(max-width:900px)");
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAuthenticated, logout } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <header>
