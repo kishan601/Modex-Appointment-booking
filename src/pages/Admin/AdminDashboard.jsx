@@ -16,6 +16,7 @@ import {
   Schedule as ScheduleIcon,
   List as ListIcon,
   Logout as LogoutIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import CreateDoctorForm from './CreateDoctorForm';
@@ -46,6 +47,14 @@ const AdminDashboard = () => {
     <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       <AppBar position="static" sx={{ backgroundColor: '#1B3C74' }}>
         <Toolbar>
+          <Button
+            color="inherit"
+            onClick={() => navigate('/')}
+            startIcon={<ArrowBackIcon />}
+            sx={{ mr: 2 }}
+          >
+            Back
+          </Button>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Medify Admin Dashboard
           </Typography>
